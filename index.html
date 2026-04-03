@@ -17,23 +17,44 @@
   #app { position: fixed; inset: 0; display: flex; flex-direction: column; }
 
   #message-area {
-    height: 35vh; width: 100%;
-    display: flex; align-items: center; justify-content: center;
-    padding: 20px; z-index: 100; pointer-events: none;
+    position: absolute;
+    top: 15%;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 100;
+    pointer-events: none;
+    width: 90%;
+    max-width: 320px;
   }
 
   #bubble {
-    background: rgba(255, 255, 255, 0.92);
-    backdrop-filter: blur(10px);
-    color: #000; padding: 20px 25px; border-radius: 25px;
-    width: 90%; max-width: 450px;
-    font-size: 18px; font-weight: 600; text-align: center;
-    box-shadow: 0 15px 35px rgba(0,0,0,0.3);
-    display: none; border: 1px solid rgba(255,255,255,0.3);
+    background: linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(255,200,220,0.9) 100%);
+    backdrop-filter: blur(12px);
+    color: #1a0b2e;
+    padding: 12px 18px;
+    border-radius: 20px;
+    font-size: 15px;
+    font-weight: 600;
+    text-align: center;
+    box-shadow: 0 8px 25px rgba(255,107,157,0.25);
+    display: none;
+    border: 2px solid rgba(255,255,255,0.5);
     pointer-events: auto;
+    position: relative;
   }
-  #bubble.show { display: block !important; animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
-  @keyframes popIn { from { transform: scale(0.8) translateY(20px); opacity: 0; } to { transform: scale(1) translateY(0); opacity: 1; } }
+  #bubble.show { display: block !important; animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+  @keyframes popIn { from { transform: scale(0.9) translateY(10px); opacity: 0; } to { transform: scale(1) translateY(0); opacity: 1; } }
+
+  #bubble::after {
+    content: '';
+    position: absolute;
+    bottom: -8px;
+    left: 50%;
+    transform: translateX(-50%);
+    border-width: 8px 8px 0;
+    border-style: solid;
+    border-color: rgba(255,200,220,0.9) transparent transparent transparent;
+  }
 
   #scene { position: absolute; inset: 0; z-index: 1; }
 
