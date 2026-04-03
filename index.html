@@ -192,15 +192,20 @@ gltfL.load(
   (gltf) => {
     model = gltf.scene;
 
-    // Configurar sombras y materiales
+    // Configurar sombras y materiales - fix huecos
     model.traverse(n => {
       if(n.isMesh) {
         n.castShadow = true;
         n.receiveShadow = true;
-        // Mejorar materiales para mejor renderizado
         if (n.material) {
           n.material.needsUpdate = true;
           n.material.envMapIntensity = 1.0;
+          // Fix huecos: desactivar backface culling y forzar opacidad
+          n.material.side = THREE.DoubleSide;
+          n.material.transparent = false;
+          n.material.depthWrite = true;
+          n.material.polygonOffset = true;
+          n.material.polygonOffsetFactor = -1;
         }
       }
     });
