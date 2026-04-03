@@ -127,14 +127,12 @@ rimLight.position.set(-2, 3, -2);
 scene.add(rimLight);
 
 function normalizeClip(clip) {
-  clip.tracks = clip.tracks.filter(t => {
-    // FILTRO MAESTRO: Solo permitimos rotaciones (quaternion) para evitar estiramientos.
-    // Solo la cadera (Hips) puede tener posición para saltar/moverse.
+  // No filtrar tracks - usar animación completa para que no se vea bugueada
+  // Solo escalar posición de Hips si existe
+  clip.tracks.forEach(t => {
     if (t.name.includes('Hips.position')) {
-      for (let i = 0; i < t.values.length; i++) t.values[i] *= 0.01;
-      return true;
+      for (let i = 0; i < t.values.length; i++) t.values[i] *= 0.1;
     }
-    return t.name.endsWith('.quaternion');
   });
   return clip;
 }
@@ -196,6 +194,7 @@ gltfL.load(
 
     // Rotar modelo -90° en X para que esté de pie
     model.rotation.x = -Math.PI / 2;
+    initialRotationX = model.rotation.x;  // Guardar rotación inicial
 
     // Escalar modelo más pequeño
     model.scale.setScalar(0.5);
@@ -244,9 +243,15 @@ gltfL.load(
 );
 
 const clock = new THREE.Clock();
+let initialRotationX = 0;
+
 function anim() {
   requestAnimationFrame(anim);
-  if (mixer) mixer.update(clock.getDelta());
+  if (mixer) {
+    mixer.update(clock.getDelta());
+    // Mantener rotación inicial después de animación
+    model.rotation.x = initialRotationX;
+  }
   renderer.render(scene, camera);
 }
 anim();
