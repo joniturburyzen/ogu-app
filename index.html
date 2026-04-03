@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+<title>Ogu Ultra</title>
+<style>
+  *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  :root { --pink: #FF6B9D; }
+  
+  html, body { 
+    height: 100%; width: 100%;
+    background: radial-gradient(circle at center, #1a0b2e 0%, #050505 100%);
+    overflow: hidden; font-family: -apple-system, system-ui, sans-serif;
+  }
+
+  #app { position: fixed; inset: 0; display: flex; flex-direction: column; }
+
+  #message-area {
+    height: 35vh; width: 100%;
+    display: flex; align-items: center; justify-content: center;
+    padding: 20px; z-index: 100; pointer-events: none;
+  }
+
+  #bubble {
+    background: rgba(255, 255, 255, 0.92);
+    backdrop-filter: blur(10px);
+    color: #000; padding: 20px 25px; border-radius: 25px;
+    width: 90%; max-width: 450px;
+    font-size: 18px; font-weight: 600; text-align: center;
+    box-shadow: 0 15px 35px rgba(0,0,0,0.3);
+    display: none; border: 1px solid rgba(255,255,255,0.3);
+    pointer-events: auto;
+  }
+  #bubble.show { display: block !important; animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+  @keyframes popIn { from { transform: scale(0.8) translateY(20px); opacity: 0; } to { transform: scale(1) translateY(0); opacity: 1; } }
+
+  #scene { position: absolute; inset: 0; z-index: 1; }
+
+  #voice-btn {
+    position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%);
+    width: 90px; height: 90px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--pink), #ff4a8d);
+    border: 5px solid rgba(255,255,255,0.1);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 200; cursor: pointer;
+    box-shadow: 0 10px 30px rgba(255, 107, 157, 0.4);
+    transition: all 0.2s;
+  }
+  #voice-btn:active { transform: translateX(-50%) scale(0.9); }
+  #voice-btn.recording { animation: pulse 1.5s infinite; background: #ff2e7e; }
+  @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(255, 107, 157, 0.7); } 70% { box-shadow: 0 0 0 25px rgba(255, 107, 157, 0); } 100% { box-shadow: 0 0 0 0 rgba(255, 107, 157, 0); } }
+  #voice-btn svg { width: 35px; height: 35px; fill: white; }
+
+  #loading {
+    position: absolute; inset: 0; z-index: 1000; background: #050505;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+  }
+  #loading.hide { opacity: 0; pointer-events: none; transition: opacity 0.8s; }
+  #loading-bar { width: 120px; height: 2px; background: rgba(255,255,255,0.1); margin-top: 20px; }
+  #loading-fill { height: 100%; width: 0; background: var(--pink); transition: width 0.3s; }
+</style>
+</head>
+
+<body>
+<div id="app">
+  <div id="message-area"><div id="bubble"></div></div>
+  <div id="scene"></div>
+  <button id="voice-btn">
+    <svg viewBox="0 0 24 24"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/><path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg>
+  </button>
+  <div id="loading">
+    <div style="letter-spacing:10px; color:var(--pink); font-size:24px;">OGU</div>
+    <div id="loading-bar"><div id="loading-fill"></div></div>
+  </div>
+</div>
+
+<script type="importmap">
+{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/" } }
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
+import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+
+let mixer, curAction, model, isBreathing = true;
+const clips = {};
+// Idle base = breathing para que siempre esté "vivo"
+const ANIM_DEFS = [
+  ['Idle', 'BreathingIdle2.fbx'], ['Talking', 'OguAnim_Talking.fbx'],
+  ['Thinking', 'OguAnim_Texting.fbx'], ['Dance', 'OguAnim_Dance.fbx'],
+  ['Wave', 'OguAnim_Wave.fbx'], ['Angry', 'OguAnim_Angry.fbx'],
+  ['DanceHipHop', 'OguAnim_DanceHipHop.fbx'], ['DanceHouse', 'OguAnim_DanceHouse.fbx'],
+  ['DanceTwerk', 'OguAnim_DanceTwerk.fbx'], ['Walking', 'OguAnim_Walking.fbx'],
+  ['Happy', 'OguAnim_Dance.fbx'], ['Sad', 'OguAnim_Texting.fbx'],
+  ['Surprised', 'OguAnim_Wave.fbx'], ['Laughing', 'OguAnim_Talking.fbx']
+];
+
+const scene = new THREE.Scene();
+const container = document.getElementById('scene');
+// FOV 35 para un look más profesional y menos deformado
+const camera = new THREE.PerspectiveCamera(35, container.clientWidth / container.clientHeight, 0.1, 100);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: "high-performance" });
+renderer.setPixelRatio(window.devicePixelRatio);
+renderer.setSize(container.clientWidth, container.clientHeight);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.shadowMap.enabled = true;
+container.appendChild(renderer.domElement);
+
+const env = new RoomEnvironment();
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(env, 0.04).texture;
+
+scene.add(new THREE.AmbientLight(0xffffff, 0.8));
+const dirLight = new THREE.DirectionalLight(0xffffff, 2.0);
+dirLight.position.set(2, 5, 3);
+dirLight.castShadow = true;
+scene.add(dirLight);
+
+const rimLight = new THREE.PointLight(0xFF6B9D, 15, 10);
+rimLight.position.set(-2, 3, -2);
+scene.add(rimLight);
+
+function normalizeClip(clip) {
+  clip.tracks = clip.tracks.filter(t => {
+    // FILTRO MAESTRO: Solo permitimos rotaciones (quaternion) para evitar estiramientos.
+    // Solo la cadera (Hips) puede tener posición para saltar/moverse.
+    if (t.name.includes('Hips.position')) {
+      for (let i = 0; i < t.values.length; i++) t.values[i] *= 0.01;
+      return true;
+    }
+    return t.name.endsWith('.quaternion');
+  });
+  return clip;
+}
+
+// setAnimation con energía variable y callback al finalizar
+window.setAnimation = (name, dur = 0.5, energy = 1, onComplete = null) => {
+  if (!mixer || !clips[name]) {
+    if (onComplete) onComplete();
+    return;
+  }
+  const action = mixer.clipAction(clips[name]);
+  if (curAction === action) {
+    if (onComplete) onComplete();
+    return;
+  }
+
+  // Ajustar velocidad según energía (0.5 = lento, 1.5 = rápido)
+  action.timeScale = 0.5 + (energy * 0.5);
+
+  if (curAction) {
+    curAction.fadeOut(dur);
+  }
+  action.reset().fadeIn(dur).play();
+  curAction = action;
+
+  // Si hay onComplete, ejecutar cuando termine la transición
+  if (onComplete && dur > 0) {
+    setTimeout(onComplete, dur * 1000);
+  } else if (onComplete) {
+    onComplete();
+  }
+};
+
+// Volver a idle respirante después de una pausa
+window.returnToIdle = (delay = 1000) => {
+  setTimeout(() => {
+    if (curAction && curAction !== clips['Idle'] && window.setAnimation) {
+      window.setAnimation('Idle', 0.8, 0.5);
+    }
+  }, delay);
+};
+
+const fbxL = new FBXLoader();
+const draco = new DRACOLoader();
+draco.setDecoderPath('https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/libs/draco/gltf/');
+const gltfL = new GLTFLoader(); gltfL.setDRACOLoader(draco);
+
+const $fill = document.getElementById('loading-fill');
+
+let loadError = false;
+
+let camHeight, camDist, lookAtY;
+
+gltfL.load(
+  'Ogu.glb',
+  (gltf) => {
+    model = gltf.scene;
+    model.traverse(n => { if(n.isMesh) { n.castShadow = true; n.receiveShadow = true; } });
+
+    // Rotar modelo -90° en X para que esté de pie
+    model.rotation.x = -Math.PI / 2;
+
+    // Escalar modelo más pequeño
+    model.scale.setScalar(0.5);
+
+    // Centrar modelo y subir sobre el botón
+    const scaledBox = new THREE.Box3().setFromObject(model);
+    model.position.y = -scaledBox.min.y + 1.0;  // Subir 1.0 extra
+
+    // Cámara ajustada
+    camera.position.set(0, 2.0, 3.5);
+    camera.lookAt(0, 1.3, 0);
+
+    scene.add(model);
+    mixer = new THREE.AnimationMixer(model);
+
+    let loaded = 0;
+    ANIM_DEFS.forEach(([name, file]) => {
+      fbxL.load(
+        file,
+        (fbx) => {
+          if (fbx.animations.length) clips[name] = normalizeClip(fbx.animations[0]);
+          loaded++;
+          $fill.style.width = (loaded / ANIM_DEFS.length * 100) + '%';
+          if (loaded === ANIM_DEFS.length && !loadError) {
+            document.getElementById('loading').classList.add('hide');
+            window.setAnimation('Idle');
+          }
+        },
+        (xhr) => { console.log(`FBX ${(xhr.loaded / xhr.total * 100).toFixed(0)}%: ${file}`); },
+        (err) => {
+          console.error(`Error loading ${file}`, err);
+          loadError = true;
+          $bubble.textContent = `ERROR: ${file}`;
+          $bubble.classList.add('show');
+        }
+      );
+    });
+  },
+  (xhr) => { console.log(`GLB ${(xhr.loaded / xhr.total * 100).toFixed(0)}%`); },
+  (err) => {
+    console.error('Error loading Ogu.glb', err);
+    loadError = true;
+    $bubble.textContent = 'ERROR: No se pudo cargar Ogu';
+    $bubble.classList.add('show');
+  }
+);
+
+const clock = new THREE.Clock();
+function anim() {
+  requestAnimationFrame(anim);
+  if (mixer) mixer.update(clock.getDelta());
+  
+  if (model) {
+    model.position.set(0, 0, 0);
+  }
+  
+  renderer.render(scene, camera);
+}
+anim();
+
+window.addEventListener('resize', () => {
+  camera.aspect = container.clientWidth / container.clientHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(container.clientWidth, container.clientHeight);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+});
+</script>
+
+<script>
+// Worker configurable: URL params > localStorage > default
+const WORKER = new URLSearchParams(location.search).get('worker') ||
+               localStorage.getItem('ogu_worker') ||
+               'https://bold-disk-14a8.joniturbu.workers.dev';
+const userId = localStorage.getItem('ogu_uid') || crypto.randomUUID();
+localStorage.setItem('ogu_uid', userId);
+const $bubble = document.getElementById('bubble');
+const $btn = document.getElementById('voice-btn');
+let bubbleTimer = null, busy = false, isRecording = false;
+
+function updateBubble(text, autoHide = false) {
+  clearTimeout(bubbleTimer);
+  $bubble.textContent = text;
+  $bubble.classList.add('show');
+  if (autoHide) bubbleTimer = setTimeout(() => $bubble.classList.remove('show'), 5000);
+}
+
+async function sendToOgu(message) {
+  if (busy) return; busy = true;
+
+  // Animación de "pensando" con energía baja
+  if (window.setAnimation) window.setAnimation('Thinking', 0.4, 0.4);
+  updateBubble('PENSANDO...', false);
+
+  try {
+    const res = await fetch(WORKER, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId, message })
+    });
+    const data = await res.json();
+
+    if (data.messages) {
+      const energy = data.energy || 0.5;
+      const pauseAfter = data.pauseAfter || 1000;
+
+      for (let i = 0; i < data.messages.length; i++) {
+        // Cambiar a talking solo si hay más mensajes o es el último
+        if (window.setAnimation) {
+          window.setAnimation('Talking', 0.3, energy);
+        }
+
+        updateBubble(data.messages[i], i === data.messages.length - 1);
+
+        // Timing de lectura: base + palabras + energía
+        const words = data.messages[i].split(' ').length;
+        const readTime = 1500 + (words * 120) + ((1 - energy) * 300);
+        await new Promise(r => setTimeout(r, readTime));
+      }
+
+      // Volver a idle después de pausa natural
+      if (window.returnToIdle) {
+        window.returnToIdle(pauseAfter);
+      }
+    }
+
+    // Si hay animación específica de emoción, aplicarla antes de idle
+    if (data.animation && data.animation !== 'Talking' && data.animation !== 'Idle') {
+      if (window.setAnimation) window.setAnimation(data.animation, 0.4, data.energy || 0.5);
+      // Volver a idle después
+      if (window.returnToIdle) window.returnToIdle(2000);
+    }
+
+  } catch(e) {
+    updateBubble('ERROR DE RED', true);
+    if (window.returnToIdle) window.returnToIdle(1000);
+  }
+  finally {
+    busy = false;
+  }
+}
+
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+const recognition = SpeechRecognition ? new SpeechRecognition() : null;
+
+// Fallback: input de texto si no hay reconocimiento de voz
+if (!recognition) {
+  const $input = document.createElement('input');
+  $input.placeholder = 'Escribe a Ogu...';
+  $input.style.cssText = 'position:absolute;bottom:150px;left:50%;transform:translateX(-50%);width:80%;max-width:300px;padding:12px 20px;border-radius:25px;border:2px solid rgba(255,255,255,0.3);background:rgba(255,255,255,0.9);font-size:16px;z-index:200;';
+  $input.onkeypress = (e) => {
+    if (e.key === 'Enter' && $input.value.trim()) {
+      sendToOgu($input.value.trim());
+      $input.value = '';
+    }
+  };
+  document.getElementById('app').appendChild($input);
+  $btn.style.display = 'none';
+}
+
+if (recognition) {
+  recognition.lang = 'es-ES';
+  recognition.continuous = false;
+  recognition.interimResults = false;
+
+  $btn.onclick = async () => {
+    if (busy) return;
+    if (!isRecording) {
+      isRecording = true; $btn.classList.add('recording');
+      updateBubble('TE ESCUCHO...', false);
+      try { recognition.start(); }
+      catch (e) {
+        isRecording = false;
+        $btn.classList.remove('recording');
+        updateBubble('MIC NO DISPONIBLE', true);
+      }
+    } else { recognition.stop(); }
+  };
+  recognition.onresult = (e) => {
+    const t = e.results[0][0].transcript;
+    if (t) { updateBubble(t.toUpperCase(), false); setTimeout(() => sendToOgu(t), 600); }
+  };
+  recognition.onend = () => { isRecording = false; $btn.classList.remove('recording'); };
+}
+</script>
+</body>
+</html>
