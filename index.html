@@ -19,22 +19,20 @@
 
   #message-area {
     position: absolute;
-    top: 8%;
-    left: 50%;
-    transform: translateX(-50%);
+    top: 10%;
+    right: 8%;
     z-index: 100;
     pointer-events: none;
-    width: 90%;
-    max-width: 320px;
+    max-width: 280px;
   }
 
   #bubble {
     background: linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(255,200,220,0.9) 100%);
     backdrop-filter: blur(12px);
     color: #1a0b2e;
-    padding: 12px 18px;
-    border-radius: 20px;
-    font-size: 15px;
+    padding: 10px 16px;
+    border-radius: 18px;
+    font-size: 14px;
     font-weight: 600;
     text-align: center;
     box-shadow: 0 8px 25px rgba(255,107,157,0.25);
@@ -44,17 +42,19 @@
     position: relative;
   }
   #bubble.show { display: block !important; animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
-  @keyframes popIn { from { transform: scale(0.9) translateY(10px); opacity: 0; } to { transform: scale(1) translateY(0); opacity: 1; } }
+  @keyframes popIn { from { transform: scale(0.9) translateX(20px); opacity: 0; } to { transform: scale(1) translateX(0); opacity: 1; } }
 
-  #bubble::after {
+  #bubble::before {
     content: '';
     position: absolute;
-    bottom: -8px;
-    left: 50%;
-    transform: translateX(-50%);
-    border-width: 8px 8px 0;
-    border-style: solid;
-    border-color: rgba(255,200,220,0.9) transparent transparent transparent;
+    bottom: -6px;
+    right: 20px;
+    transform: rotate(45deg);
+    width: 12px;
+    height: 12px;
+    background: linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(255,200,220,0.9) 100%);
+    border-left: 2px solid rgba(255,255,255,0.5);
+    border-bottom: 2px solid rgba(255,255,255,0.5);
   }
 
   #scene { position: absolute; inset: 0; z-index: 1; }
