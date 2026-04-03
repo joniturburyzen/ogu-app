@@ -202,11 +202,11 @@ gltfL.load(
 
     // Centrar modelo y subir sobre el botón
     const scaledBox = new THREE.Box3().setFromObject(model);
-    model.position.y = -scaledBox.min.y + 1.0;  // Subir 1.0 extra
+    model.position.y = -scaledBox.min.y + 1.5;  // Subir 1.5 extra
 
     // Cámara ajustada
-    camera.position.set(0, 2.0, 3.5);
-    camera.lookAt(0, 1.3, 0);
+    camera.position.set(0, 2.2, 4.0);
+    camera.lookAt(0, 1.5, 0);
 
     scene.add(model);
     mixer = new THREE.AnimationMixer(model);
@@ -247,11 +247,6 @@ const clock = new THREE.Clock();
 function anim() {
   requestAnimationFrame(anim);
   if (mixer) mixer.update(clock.getDelta());
-  
-  if (model) {
-    model.position.set(0, 0, 0);
-  }
-  
   renderer.render(scene, camera);
 }
 anim();
