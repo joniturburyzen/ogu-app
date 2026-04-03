@@ -189,7 +189,8 @@ window.setAnimation = (name, dur = 0.5, energy = 1, onComplete = null) => {
     if (onComplete) onComplete();
     return;
   }
-  action.timeScale = 0.7 + (energy * 0.6);
+  // Rango natural 0.8-1.2 (investigation-based: evita sobre-exageración)
+  action.timeScale = 0.8 + (energy * 0.4);
   if (curAction) curAction.fadeOut(dur);
   action.reset().fadeIn(dur).play();
   curAction = action;
